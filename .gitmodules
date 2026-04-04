@@ -1,0 +1,3 @@
+[submodule "BWSI-CubeSat"]
+	path = BWSI-CubeSat
+	url = https://github.com/xvb8/BWSI-CubeSat.git
