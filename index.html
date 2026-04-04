@@ -526,7 +526,26 @@
   </main>
 
   <script>
+    window.IMAGE_COMPARE_API_BASE = window.IMAGE_COMPARE_API_BASE || '';
+
     const state = { a: null, b: null, resultUrl: null };
+
+    function getApiBaseUrl() {
+      return (window.IMAGE_COMPARE_API_BASE || '').replace(/\/$/, '');
+    }
+
+    function getApiUrl(path) {
+      const base = getApiBaseUrl();
+      return base ? `${base}${path}` : path;
+    }
+
+    function getGithubPagesMessage() {
+      if (!location.hostname.endsWith('github.io') || getApiBaseUrl()) {
+        return null;
+      }
+
+      return 'This site is running on GitHub Pages, which cannot execute bridge.py. Set window.IMAGE_COMPARE_API_BASE to your deployed backend URL.';
+    }
 
     ['a','b'].forEach(id => {
       const zone = document.getElementById('zone-' + id);
@@ -585,12 +604,19 @@
       showLoading(true);
       clearOutput();
 
+      const pagesMessage = getGithubPagesMessage();
+      if (pagesMessage) {
+        setError(pagesMessage);
+        showLoading(false);
+        return;
+      }
+
       const formData = new FormData();
       formData.append('image_a', state.a.file);
       formData.append('image_b', state.b.file);
 
       try {
-        const res = await fetch('/compare', { method: 'POST', body: formData });
+        const res = await fetch(getApiUrl('/compare'), { method: 'POST', body: formData });
         const ct = res.headers.get('content-type') || '';
         if (!res.ok) {
           let message = `Server error ${res.status}`;

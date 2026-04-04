@@ -2,6 +2,12 @@
 
 Local image comparison app backed by `bridge.py` and the `BWSI-CubeSat` comparison pipeline.
 
+## GitHub Pages
+
+GitHub Pages can host `index.html`, but it cannot run `bridge.py`. For the published page to work, deploy `bridge.py` somewhere that can run Python and set `window.IMAGE_COMPARE_API_BASE` in `index.html` to that backend origin, for example `https://your-backend.example.com`.
+
+The page will then call `POST /compare` on that backend instead of assuming the API is on the same origin.
+
 ## Run locally
 
 1. Create and activate the virtual environment.

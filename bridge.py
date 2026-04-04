@@ -25,6 +25,17 @@ run_quarksat = load_quarksat_main()
 app = Flask(__name__, static_folder=str(BASE_DIR), static_url_path="")
 
 
+@app.after_request
+def add_cors_headers(response):
+    origin = request.headers.get("Origin")
+    if origin:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Vary"] = "Origin"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    return response
+
+
 def decode_image(uploaded_file):
     data = np.frombuffer(uploaded_file.read(), dtype=np.uint8)
     image = cv2.imdecode(data, cv2.IMREAD_COLOR)
@@ -36,6 +47,16 @@ def decode_image(uploaded_file):
 @app.get("/")
 def index():
     return app.send_static_file("index.html")
+
+
+@app.get("/health")
+def health():
+    return jsonify({"status": "ok"})
+
+
+@app.route("/compare", methods=["OPTIONS"])
+def compare_options():
+    return ("", 204)
 
 
 @app.post("/compare")
