@@ -5,8 +5,10 @@ Local image comparison app backed by `bridge.py` and the `BWSI-CubeSat` comparis
 
 ## Run locally
 
-1. Create and activate the virtual environment.
-2. Install dependencies: `pip install flask numpy opencv-python shapely`
+1. Create and activate the virtual environment:
+    - **Windows**: `python -m venv venv && venv\Scripts\activate`
+    - **macOS/Linux**: `python -m venv venv && source venv/bin/activate`
+2. Install dependencies: `pip -r requirements.txt`
 3. Start the app: `python bridge.py`
 4. Open `http://localhost:8000/index`
 
