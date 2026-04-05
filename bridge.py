@@ -1,7 +1,7 @@
 import importlib.util
 import io
 from pathlib import Path
-# updated
+# .venv\Scripts\python bridge.py
 import cv2
 import numpy as np
 from flask import Flask, jsonify, request, send_file
