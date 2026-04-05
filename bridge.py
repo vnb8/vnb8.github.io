@@ -45,6 +45,10 @@ def decode_image(uploaded_file):
 
 
 @app.get("/")
+def root():
+    return jsonify({"message": "Welcome to the QuarkSat Image Comparison API!"})
+
+@app.get("/index")
 def index():
     return app.send_static_file("index.html")
 
