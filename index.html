@@ -41,14 +41,8 @@
     .logo-placeholder {
       width: 30px;
       height: 30px;
-      border: 1.5px dashed #CBD5E1;
       border-radius: 4px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 7px;
-      color: #1a4fd6;
-      font-weight: 500;
+      object-fit: cover;
     }
 
     .site-name {
@@ -93,7 +87,7 @@
     }
 
     .hero-img-slot {
-      width: 100%;
+      width: 50%;
       aspect-ratio: 1/1;
       border: 1.5px dashed #CBD5E1;
       border-radius: 8px;
@@ -103,6 +97,8 @@
       align-items: center;
       justify-content: center;
       gap: 8px;
+      margin-left: auto;
+      margin-right: 40px;
     }
 
     .hero-img-slot svg { color: #CBD5E1; }
@@ -425,14 +421,14 @@
 
   <header>
     <div class="logo-area">
-      <div class="logo-placeholder">LOGO</div>
+      <img class="logo-placeholder" src="BWSI-CubeSat/images/hero.png" alt="Logo"/>
       <span class="site-name">Homographical Comparer</span>
     </div>
   </header>
 
   <section class="hero">
     <div>
-      <h1>Compare.<br><b>Transform.</b></h1>
+      <h1>Compare Two Images</h1>
       <p>A pixel based image comparer using a SIFT/FLANN and homography pipeline.</p>
     </div>
     <div class="hero-img-slot" style="border:none;background:none;">
@@ -514,7 +510,7 @@
         <div class="loading-bar-track">
           <div class="loading-bar-fill"></div>
         </div>
-        <p class="loading-label">Processing via bridge.py…</p>
+        <p class="loading-label">Processing via API…</p>
       </div>
     </div>
 
