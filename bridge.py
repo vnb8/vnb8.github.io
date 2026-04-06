@@ -1,12 +1,14 @@
 import base64
 import importlib.util
 import io
+import json
+import queue
 import threading
 from pathlib import Path
 # .venv\Scripts\python bridge.py
 import cv2
 import numpy as np
-from flask import Flask, jsonify, request, send_file
+from flask import Flask, jsonify, request, send_file, Response
 
 BASE_DIR = Path(__file__).resolve().parent
 QUARKSAT_PATH = BASE_DIR / "BWSI-CubeSat" / "src" / "QuarkSatGround.py"
@@ -84,17 +86,21 @@ def compare():
             _loading_cache["warped2"] = None
             _loading_cache["hist1"] = None
             _loading_cache["hist2"] = None
-        quarksat_module.state_machine = "initial"
+        quarksat_module.set_state("initial")
         quarksat_module.sift_done_event.clear()
         quarksat_module.warp_done_event.clear()
         quarksat_module.histogram_done_event.clear()
 
         # Start keypoint map caching in background
-        threading.Thread(target=_cache_keypoint_maps, args=(img1.copy(), img2.copy()), daemon=True).start()
-        threading.Thread(target=_cache_warped_images, daemon=True).start()
-        threading.Thread(target=_cache_histogram_images, daemon=True).start()
+        t1 = threading.Thread(target=_cache_keypoint_maps, args=(img1.copy(), img2.copy()), daemon=True)
+        t2 = threading.Thread(target=_cache_warped_images, daemon=True)
+        t3 = threading.Thread(target=_cache_histogram_images, daemon=True)
+        t1.start(); t2.start(); t3.start()
 
         result = run_quarksat(img1, img2)
+
+        # Wait for cache threads so /loading has all data before the response arrives
+        t1.join(); t2.join(); t3.join()
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
     except Exception as exc:
@@ -131,6 +137,7 @@ def _cache_keypoint_maps(img1, img2):
             with _loading_lock:
                 _loading_cache["image1"] = base64.b64encode(enc1.tobytes()).decode()
                 _loading_cache["image2"] = base64.b64encode(enc2.tobytes()).decode()
+            quarksat_module._notify("cache_ready")
     except Exception:
         raise RuntimeError("Failed to cache keypoint maps for loading screen.")
 
@@ -149,6 +156,7 @@ def _cache_warped_images():
             with _loading_lock:
                 _loading_cache["warped1"] = base64.b64encode(enc1.tobytes()).decode()
                 _loading_cache["warped2"] = base64.b64encode(enc2.tobytes()).decode()
+            quarksat_module._notify("cache_ready")
     except Exception:
         raise RuntimeError("Failed to cache warped images for loading screen.")
 
@@ -167,8 +175,66 @@ def _cache_histogram_images():
             with _loading_lock:
                 _loading_cache["hist1"] = base64.b64encode(enc1.tobytes()).decode()
                 _loading_cache["hist2"] = base64.b64encode(enc2.tobytes()).decode()
+            quarksat_module._notify("cache_ready")
     except Exception:
         raise RuntimeError("Failed to cache histogram images for loading screen.")
+
+
+def _build_loading_data():
+    """Build a snapshot of current state + all available cached data."""
+    state = quarksat_module.state_machine
+    INITIAL_STATES = {'compute_homography_matrix', 'sift_done_start_homography', 'refining_alignment'}
+    REFINED_STATES = {'warping_image', 'matching_histograms', 'histogram_done', 'comparing_images'}
+
+    data = {"state": state}
+
+    if state in INITIAL_STATES:
+        h = quarksat_module.initial_homography
+        if h is not None:
+            data["homography"] = h.tolist()
+    elif state in REFINED_STATES:
+        h = quarksat_module.refined_homography
+        if h is not None:
+            data["homography"] = h.tolist()
+
+    with _loading_lock:
+        for key in ("image1", "image2", "warped1", "warped2", "hist1", "hist2"):
+            val = _loading_cache.get(key)
+            if val:
+                data[key] = val
+
+    return data
+
+
+@app.get("/events")
+def events():
+    """SSE stream that pushes a snapshot on every state / cache change."""
+    q = quarksat_module.subscribe_state()
+
+    def generate():
+        try:
+            while True:
+                try:
+                    q.get(timeout=30)
+                except queue.Empty:
+                    yield ": keepalive\n\n"
+                    continue
+                data = _build_loading_data()
+                yield f"data: {json.dumps(data)}\n\n"
+        except GeneratorExit:
+            pass
+        finally:
+            quarksat_module.unsubscribe_state(q)
+
+    return Response(
+        generate(),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
 
 
 @app.get("/loading")
@@ -243,10 +309,16 @@ def loading():
         if h_mat is not None:
             resp["homography"] = h_mat.tolist()
         with _loading_lock:
+            img1 = _loading_cache.get("image1")
+            img2 = _loading_cache.get("image2")
             w1 = _loading_cache.get("warped1")
             w2 = _loading_cache.get("warped2")
             hi1 = _loading_cache.get("hist1")
             hi2 = _loading_cache.get("hist2")
+        if img1:
+            resp["image1"] = img1
+        if img2:
+            resp["image2"] = img2
         if w1:
             resp["warped1"] = w1
         if w2:
@@ -262,10 +334,16 @@ def loading():
         if h_mat is not None:
             resp["homography"] = h_mat.tolist()
         with _loading_lock:
+            img1 = _loading_cache.get("image1")
+            img2 = _loading_cache.get("image2")
             w1 = _loading_cache.get("warped1")
             w2 = _loading_cache.get("warped2")
             hi1 = _loading_cache.get("hist1")
             hi2 = _loading_cache.get("hist2")
+        if img1:
+            resp["image1"] = img1
+        if img2:
+            resp["image2"] = img2
         if w1:
             resp["warped1"] = w1
         if w2:

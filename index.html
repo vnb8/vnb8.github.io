@@ -828,7 +828,7 @@
       display.classList.add('visible');
     }
 
-    function startLoadingPolling() {
+    function updateTimeline(data) {
       const label = document.getElementById('loading-label');
       const preview1 = document.getElementById('loading-preview-1');
       const preview2 = document.getElementById('loading-preview-2');
@@ -847,86 +847,120 @@
       const histPrev1 = document.getElementById('hist-preview-1');
       const histPrev2 = document.getElementById('hist-preview-2');
 
-      const pollInterval = setInterval(async () => {
-        try {
-          const res = await fetch(getApiUrl('/loading'));
-          if (!res.ok) return;
+      const s = data.state;
+      const INITIAL_STATES = ['compute_homography_matrix', 'sift_done_start_homography', 'refining_alignment'];
+      const REFINED_STATES = ['warping_image', 'matching_histograms', 'histogram_done', 'comparing_images'];
+      const WARPED_STATES = ['matching_histograms', 'histogram_done', 'comparing_images'];
+      const HIST_STATES = ['histogram_done', 'comparing_images'];
+
+      const MESSAGES = {
+        'loading_start': 'Detecting features (SIFT)…',
+        'compute_homography_matrix': 'Computing homography matrix (RANSAC)…',
+        'sift_done_start_homography': 'Computing homography…',
+        'refining_alignment': 'Refining alignment (ECC)…',
+        'warping_image': 'Warping image…',
+        'matching_histograms': 'Matching histograms…',
+        'histogram_done': 'Histograms matched',
+        'comparing_images': 'Comparing pixels…',
+      };
+      if (MESSAGES[s]) label.textContent = MESSAGES[s];
+
+      // Render homography matrices
+      if (data.homography && (INITIAL_STATES.includes(s) || REFINED_STATES.includes(s))) {
+        if (INITIAL_STATES.includes(s)) {
+          renderMatrixGrid('matrix-grid-initial', 'matrix-placeholder-initial', data.homography);
+        }
+        if (REFINED_STATES.includes(s)) {
+          renderMatrixGrid('matrix-grid-refined', 'matrix-placeholder-refined', data.homography);
+        }
+      }
+
+      // Render warped images into step 4
+      if (data.warped1) {
+        warpedPrev1.src = 'data:image/png;base64,' + data.warped1;
+        warpedPrev1.style.display = 'block';
+      }
+      if (data.warped2) {
+        warpedPrev2.src = 'data:image/png;base64,' + data.warped2;
+        warpedPrev2.style.display = 'block';
+      }
+
+      // Render histogram-matched images into step 5
+      if (data.hist1) {
+        histPrev1.src = 'data:image/png;base64,' + data.hist1;
+        histPrev1.style.display = 'block';
+      }
+      if (data.hist2) {
+        histPrev2.src = 'data:image/png;base64,' + data.hist2;
+        histPrev2.style.display = 'block';
+      }
+
+      // Render keypoint images into step 1
+      if (data.image1) {
+        preview1.src = 'data:image/png;base64,' + data.image1;
+        preview1.style.display = 'block';
+      }
+      if (data.image2) {
+        preview2.src = 'data:image/png;base64,' + data.image2;
+        preview2.style.display = 'block';
+      }
+      if (data.image1 || data.image2) {
+        stepLabel1.textContent = 'Features detected';
+      }
+
+      // Activate steps progressively
+      if (s && s !== 'initial' && s !== 'loading_start') {
+        step1.classList.add('active');
+        arrow1.classList.add('active');
+        step2.classList.add('active');
+      }
+      if (REFINED_STATES.includes(s)) {
+        arrow2.classList.add('active');
+        step3.classList.add('active');
+      }
+      if (WARPED_STATES.includes(s)) {
+        arrow3.classList.add('active');
+        step4.classList.add('active');
+      }
+      if (HIST_STATES.includes(s)) {
+        arrow4.classList.add('active');
+        step5.classList.add('active');
+      }
+    }
+
+    function startEventStream() {
+      const source = new EventSource(getApiUrl('/events'));
+      source.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        updateTimeline(data);
+      };
+      return source;
+    }
+
+    async function finalizeTimeline() {
+      // /compare joins cache threads, so a single fetch gets all remaining data
+      try {
+        const res = await fetch(getApiUrl('/loading'));
+        if (res.ok) {
           const data = await res.json();
-          if (data.message) label.textContent = data.message;
+          updateTimeline(data);
+        }
+      } catch (_) { /* ignore */ }
 
-          const s = data.state;
-          const INITIAL_STATES = ['compute_homography_matrix', 'sift_done_start_homography', 'refining_alignment'];
-          const REFINED_STATES = ['warping_image', 'matching_histograms', 'histogram_done', 'comparing_images'];
-          const WARPED_STATES = ['matching_histograms', 'histogram_done', 'comparing_images'];
-          const HIST_STATES = ['histogram_done', 'comparing_images'];
-
-          // Render initial homography into step 2
-          if (data.homography && (INITIAL_STATES.includes(s) || REFINED_STATES.includes(s))) {
-            if (INITIAL_STATES.includes(s)) {
-              renderMatrixGrid('matrix-grid-initial', 'matrix-placeholder-initial', data.homography);
-            }
-            if (REFINED_STATES.includes(s)) {
-              renderMatrixGrid('matrix-grid-refined', 'matrix-placeholder-refined', data.homography);
-            }
-          }
-
-          // Render warped images into step 4
-          if (data.warped1 || data.warped2) {
-            if (data.warped1) {
-              warpedPrev1.src = 'data:image/png;base64,' + data.warped1;
-              warpedPrev1.style.display = 'block';
-            }
-            if (data.warped2) {
-              warpedPrev2.src = 'data:image/png;base64,' + data.warped2;
-              warpedPrev2.style.display = 'block';
-            }
-          }
-
-          // Render histogram-matched images into step 5
-          if (data.hist1 || data.hist2) {
-            if (data.hist1) {
-              histPrev1.src = 'data:image/png;base64,' + data.hist1;
-              histPrev1.style.display = 'block';
-            }
-            if (data.hist2) {
-              histPrev2.src = 'data:image/png;base64,' + data.hist2;
-              histPrev2.style.display = 'block';
-            }
-          }
-
-          if (data.image1 || data.image2) {
-            if (data.image1) {
-              preview1.src = 'data:image/png;base64,' + data.image1;
-              preview1.style.display = 'block';
-            }
-            if (data.image2) {
-              preview2.src = 'data:image/png;base64,' + data.image2;
-              preview2.style.display = 'block';
-            }
-            stepLabel1.textContent = 'Features detected';
-          }
-
-          // Activate steps progressively
-          if (s && s !== 'initial' && s !== 'loading_start') {
-            step1.classList.add('active');
-            arrow1.classList.add('active');
-            step2.classList.add('active');
-          }
-          if (REFINED_STATES.includes(s)) {
-            arrow2.classList.add('active');
-            step3.classList.add('active');
-          }
-          if (WARPED_STATES.includes(s)) {
-            arrow3.classList.add('active');
-            step4.classList.add('active');
-          }
-          if (HIST_STATES.includes(s)) {
-            arrow4.classList.add('active');
-            step5.classList.add('active');
-          }
-        } catch (_) { /* ignore polling errors */ }
-      }, 1000);
-      return pollInterval;
+      // Activate all steps and arrows since comparison succeeded
+      document.getElementById('loading-step-1').classList.add('active');
+      document.getElementById('loading-step-2').classList.add('active');
+      document.getElementById('loading-step-3').classList.add('active');
+      document.getElementById('loading-step-4').classList.add('active');
+      document.getElementById('loading-step-5').classList.add('active');
+      document.getElementById('step-arrow-1').classList.add('active');
+      document.getElementById('step-arrow-2').classList.add('active');
+      document.getElementById('step-arrow-3').classList.add('active');
+      document.getElementById('step-arrow-4').classList.add('active');
+      document.getElementById('step-label-1').textContent = 'Features detected';
+      document.getElementById('step-label-2').textContent = 'Homography computed';
+      document.getElementById('step-label-3').textContent = 'Alignment refined';
+      document.getElementById('step-label-5').textContent = 'Histogram matched';
     }
 
     async function runComparison() {
@@ -946,7 +980,7 @@
       formData.append('image_a', state.a.file);
       formData.append('image_b', state.b.file);
 
-      const pollId = startLoadingPolling();
+      const eventSource = startEventStream();
 
       try {
         const res = await fetch(getApiUrl('/compare'), { method: 'POST', body: formData });
@@ -965,11 +999,13 @@
         } else {
           url = (await res.json()).result_url;
         }
+        eventSource.close();
+        await finalizeTimeline();
         showResult(url);
       } catch (err) {
         setError('Comparison failed: ' + err.message);
+        eventSource.close();
       } finally {
-        clearInterval(pollId);
         document.getElementById('loading-label').textContent = 'Processing…';
         showLoading(false);
       }
