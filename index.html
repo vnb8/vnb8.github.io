@@ -115,7 +115,7 @@
     main {
       flex: 1;
       padding: 40px 40px 60px;
-      max-width: 960px;
+      max-width: 1280px;
     }
 
     .section-label {
@@ -182,7 +182,7 @@
     .drop-zone .overlay {
       position: absolute;
       inset: 0;
-      background: rgba(255,255,255,0.8);
+      background: transparent;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -336,31 +336,123 @@
       align-items: center;
       justify-content: center;
       flex-direction: column;
-      gap: 20px;
+      gap: 16px;
       border-radius: 5px;
+      padding: 20px;
     }
 
     .loading-overlay.active { display: flex; }
 
-    .loading-bar-track {
-      width: 180px;
-      height: 3px;
+    .loading-steps {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 14px;
+      width: 100%;
+      justify-content: center;
+      margin-left: 0;
+    }
+
+    .loading-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      opacity: 0.3;
+      transition: opacity 0.4s;
+    }
+
+    .loading-step.active {
+      opacity: 1;
+    }
+
+    .step-images {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .step-images img {
+      max-width: 220px;
+      max-height: 180px;
+      object-fit: contain;
+      border-radius: 5px;
+      border: 1px solid #E2E8F0;
+    }
+
+    .step-label {
+      font-size: 12px;
+      color: #1A3A6B;
+      font-weight: 400;
+    }
+
+    .step-arrow {
+      color: #CBD5E1;
+      flex-shrink: 0;
+      transition: color 0.4s;
+    }
+
+    .step-arrow.active {
+      color: #1a4fd6;
+    }
+
+    .step-placeholder {
+      width: 220px;
+      height: 180px;
+      border: 2px dashed #CBD5E1;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      color: #CBD5E1;
+      font-weight: 300;
+    }
+
+    .homography-matrix {
+      width: 220px;
+      min-height: 90px;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .homography-matrix.visible { display: flex; }
+
+    .matrix-title {
+      font-size: 11px;
+      font-weight: 500;
+      color: #1a4fd6;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .matrix-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2px;
       background: #E2E8F0;
-      border-radius: 99px;
+      border: 1px solid #E2E8F0;
+      border-radius: 4px;
       overflow: hidden;
+      width: 100%;
     }
 
-    .loading-bar-fill {
-      height: 100%;
-      width: 50%;
-      background: #1a4fd6;
-      border-radius: 99px;
-      animation: slide 1.2s ease-in-out infinite;
+    .matrix-cell {
+      background: #fff;
+      font-family: 'Courier New', monospace;
+      font-size: 9px;
+      color: #1A3A6B;
+      text-align: right;
+      padding: 4px 5px;
+      white-space: nowrap;
     }
 
-    @keyframes slide {
-      0%   { transform: translateX(-100%); }
-      100% { transform: translateX(400%); }
+    .matrix-cell.highlight {
+      background: #EFF6FF;
+      color: #1a4fd6;
+      font-weight: 500;
     }
 
     .loading-dots {
@@ -488,6 +580,80 @@
 
     <hr style="margin: 50px 0;"/>
 
+    <!-- Persistent stepper above the result box -->
+    <div class="loading-steps" id="loading-steps" style="display:none; margin-bottom:20px;">
+      <!-- Step 1: Keypoint detection -->
+      <div class="loading-step active" id="loading-step-1">
+        <div class="step-images">
+          <img id="loading-preview-1" style="display:none;"/>
+          <img id="loading-preview-2" style="display:none;"/>
+        </div>
+        <span class="step-label" id="step-label-1">Detecting features…</span>
+      </div>
+
+      <!-- Arrow 1 -->
+      <svg class="step-arrow" id="step-arrow-1" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="5" y1="12" x2="19" y2="12"/>
+        <polyline points="12 5 19 12 12 19"/>
+      </svg>
+
+      <!-- Step 2: Initial Homography (RANSAC) -->
+      <div class="loading-step" id="loading-step-2">
+        <div class="step-placeholder" id="matrix-placeholder-initial">Homography matrix</div>
+        <div class="homography-matrix" id="homography-display-initial">
+          <span class="matrix-title">Initial Homography (RANSAC)</span>
+          <div class="matrix-grid" id="matrix-grid-initial"></div>
+        </div>
+        <span class="step-label" id="step-label-2">Computing homography…</span>
+      </div>
+
+      <!-- Arrow 2 -->
+      <svg class="step-arrow" id="step-arrow-2" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="5" y1="12" x2="19" y2="12"/>
+        <polyline points="12 5 19 12 12 19"/>
+      </svg>
+
+      <!-- Step 3: Refined Homography (ECC) -->
+      <div class="loading-step" id="loading-step-3">
+        <div class="step-placeholder" id="matrix-placeholder-refined">Refined matrix</div>
+        <div class="homography-matrix" id="homography-display-refined">
+          <span class="matrix-title">Refined Homography (ECC)</span>
+          <div class="matrix-grid" id="matrix-grid-refined"></div>
+        </div>
+        <span class="step-label" id="step-label-3">Refining alignment…</span>
+      </div>
+
+      <!-- Arrow 3 -->
+      <svg class="step-arrow" id="step-arrow-3" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="5" y1="12" x2="19" y2="12"/>
+        <polyline points="12 5 19 12 12 19"/>
+      </svg>
+
+      <!-- Step 4: Warped image pair -->
+      <div class="loading-step" id="loading-step-4">
+        <div class="step-images">
+          <img id="warped-preview-1" style="display:none;"/>
+          <img id="warped-preview-2" style="display:none;"/>
+        </div>
+        <span class="step-label" id="step-label-4">Warped alignment</span>
+      </div>
+
+      <!-- Arrow 4 -->
+      <svg class="step-arrow" id="step-arrow-4" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="5" y1="12" x2="19" y2="12"/>
+        <polyline points="12 5 19 12 12 19"/>
+      </svg>
+
+      <!-- Step 5: Histogram-matched image pair -->
+      <div class="loading-step" id="loading-step-5">
+        <div class="step-images">
+          <img id="hist-preview-1" style="display:none;"/>
+          <img id="hist-preview-2" style="display:none;"/>
+        </div>
+        <span class="step-label" id="step-label-5">Histogram/Colors matched</span>
+      </div>
+    </div>
+
     <div class="output-label-row">
       <p class="section-label" style="margin:0">Result</p>
       <button class="download-btn" id="download-btn" onclick="downloadResult()">Save image</button>
@@ -509,10 +675,7 @@
         <div class="loading-dots">
           <span></span><span></span><span></span>
         </div>
-        <div class="loading-bar-track">
-          <div class="loading-bar-fill"></div>
-        </div>
-        <p class="loading-label">Processing…</p>
+        <p class="loading-label" id="loading-label">Processing…</p>
       </div>
     </div>
 
@@ -592,10 +755,185 @@
       document.getElementById('run-status').textContent = ready ? 'Ready to run' : '';
     }
 
+    function resetStepper() {
+      document.getElementById('loading-steps').style.display = 'flex';
+      const preview1 = document.getElementById('loading-preview-1');
+      const preview2 = document.getElementById('loading-preview-2');
+      // Show uploaded images immediately as step 1 preview
+      if (state.a && state.a.dataUrl) {
+        preview1.src = state.a.dataUrl;
+        preview1.style.display = 'block';
+      } else {
+        preview1.src = '';
+        preview1.style.display = 'none';
+      }
+      if (state.b && state.b.dataUrl) {
+        preview2.src = state.b.dataUrl;
+        preview2.style.display = 'block';
+      } else {
+        preview2.src = '';
+        preview2.style.display = 'none';
+      }
+      // Reset all steps
+      document.getElementById('loading-step-1').classList.add('active');
+      document.getElementById('loading-step-2').classList.remove('active');
+      document.getElementById('loading-step-3').classList.remove('active');
+      document.getElementById('loading-step-4').classList.remove('active');
+      document.getElementById('loading-step-5').classList.remove('active');
+      document.getElementById('step-arrow-1').classList.remove('active');
+      document.getElementById('step-arrow-2').classList.remove('active');
+      document.getElementById('step-arrow-3').classList.remove('active');
+      document.getElementById('step-arrow-4').classList.remove('active');
+      document.getElementById('step-label-1').textContent = 'Detecting features…';
+      document.getElementById('step-label-2').textContent = 'Computing homography…';
+      document.getElementById('step-label-3').textContent = 'Refining alignment…';
+      document.getElementById('step-label-4').textContent = 'Warped alignment';
+      document.getElementById('step-label-5').textContent = 'Histogram matched';
+      // Reset initial matrix
+      document.getElementById('homography-display-initial').classList.remove('visible');
+      document.getElementById('matrix-placeholder-initial').style.display = 'flex';
+      document.getElementById('matrix-grid-initial').innerHTML = '';
+      // Reset refined matrix
+      document.getElementById('homography-display-refined').classList.remove('visible');
+      document.getElementById('matrix-placeholder-refined').style.display = 'flex';
+      document.getElementById('matrix-grid-refined').innerHTML = '';
+      // Reset warped previews
+      const wp1 = document.getElementById('warped-preview-1');
+      const wp2 = document.getElementById('warped-preview-2');
+      wp1.src = ''; wp1.style.display = 'none';
+      wp2.src = ''; wp2.style.display = 'none';
+      // Reset histogram previews
+      const hp1 = document.getElementById('hist-preview-1');
+      const hp2 = document.getElementById('hist-preview-2');
+      hp1.src = ''; hp1.style.display = 'none';
+      hp2.src = ''; hp2.style.display = 'none';
+    }
+
+    function renderMatrixGrid(gridId, placeholderId, matrix) {
+      const grid = document.getElementById(gridId);
+      const placeholder = document.getElementById(placeholderId);
+      const display = grid.parentElement;
+      grid.innerHTML = '';
+      for (let r = 0; r < 3; r++) {
+        for (let c = 0; c < 3; c++) {
+          const cell = document.createElement('div');
+          cell.className = 'matrix-cell';
+          const val = matrix[r][c];
+          cell.textContent = val.toFixed(6);
+          if (r === c || c === 2) cell.classList.add('highlight');
+          grid.appendChild(cell);
+        }
+      }
+      placeholder.style.display = 'none';
+      display.classList.add('visible');
+    }
+
+    function startLoadingPolling() {
+      const label = document.getElementById('loading-label');
+      const preview1 = document.getElementById('loading-preview-1');
+      const preview2 = document.getElementById('loading-preview-2');
+      const step1 = document.getElementById('loading-step-1');
+      const step2 = document.getElementById('loading-step-2');
+      const step3 = document.getElementById('loading-step-3');
+      const step4 = document.getElementById('loading-step-4');
+      const step5 = document.getElementById('loading-step-5');
+      const arrow1 = document.getElementById('step-arrow-1');
+      const arrow2 = document.getElementById('step-arrow-2');
+      const arrow3 = document.getElementById('step-arrow-3');
+      const arrow4 = document.getElementById('step-arrow-4');
+      const stepLabel1 = document.getElementById('step-label-1');
+      const warpedPrev1 = document.getElementById('warped-preview-1');
+      const warpedPrev2 = document.getElementById('warped-preview-2');
+      const histPrev1 = document.getElementById('hist-preview-1');
+      const histPrev2 = document.getElementById('hist-preview-2');
+
+      const pollInterval = setInterval(async () => {
+        try {
+          const res = await fetch(getApiUrl('/loading'));
+          if (!res.ok) return;
+          const data = await res.json();
+          if (data.message) label.textContent = data.message;
+
+          const s = data.state;
+          const INITIAL_STATES = ['compute_homography_matrix', 'sift_done_start_homography', 'refining_alignment'];
+          const REFINED_STATES = ['warping_image', 'matching_histograms', 'histogram_done', 'comparing_images'];
+          const WARPED_STATES = ['matching_histograms', 'histogram_done', 'comparing_images'];
+          const HIST_STATES = ['histogram_done', 'comparing_images'];
+
+          // Render initial homography into step 2
+          if (data.homography && (INITIAL_STATES.includes(s) || REFINED_STATES.includes(s))) {
+            if (INITIAL_STATES.includes(s)) {
+              renderMatrixGrid('matrix-grid-initial', 'matrix-placeholder-initial', data.homography);
+            }
+            if (REFINED_STATES.includes(s)) {
+              renderMatrixGrid('matrix-grid-refined', 'matrix-placeholder-refined', data.homography);
+            }
+          }
+
+          // Render warped images into step 4
+          if (data.warped1 || data.warped2) {
+            if (data.warped1) {
+              warpedPrev1.src = 'data:image/png;base64,' + data.warped1;
+              warpedPrev1.style.display = 'block';
+            }
+            if (data.warped2) {
+              warpedPrev2.src = 'data:image/png;base64,' + data.warped2;
+              warpedPrev2.style.display = 'block';
+            }
+          }
+
+          // Render histogram-matched images into step 5
+          if (data.hist1 || data.hist2) {
+            if (data.hist1) {
+              histPrev1.src = 'data:image/png;base64,' + data.hist1;
+              histPrev1.style.display = 'block';
+            }
+            if (data.hist2) {
+              histPrev2.src = 'data:image/png;base64,' + data.hist2;
+              histPrev2.style.display = 'block';
+            }
+          }
+
+          if (data.image1 || data.image2) {
+            if (data.image1) {
+              preview1.src = 'data:image/png;base64,' + data.image1;
+              preview1.style.display = 'block';
+            }
+            if (data.image2) {
+              preview2.src = 'data:image/png;base64,' + data.image2;
+              preview2.style.display = 'block';
+            }
+            stepLabel1.textContent = 'Features detected';
+          }
+
+          // Activate steps progressively
+          if (s && s !== 'initial' && s !== 'loading_start') {
+            step1.classList.add('active');
+            arrow1.classList.add('active');
+            step2.classList.add('active');
+          }
+          if (REFINED_STATES.includes(s)) {
+            arrow2.classList.add('active');
+            step3.classList.add('active');
+          }
+          if (WARPED_STATES.includes(s)) {
+            arrow3.classList.add('active');
+            step4.classList.add('active');
+          }
+          if (HIST_STATES.includes(s)) {
+            arrow4.classList.add('active');
+            step5.classList.add('active');
+          }
+        } catch (_) { /* ignore polling errors */ }
+      }, 1000);
+      return pollInterval;
+    }
+
     async function runComparison() {
       setError(null);
       showLoading(true);
       clearOutput();
+      resetStepper();
 
       const pagesMessage = getGithubPagesMessage();
       if (pagesMessage) {
@@ -607,6 +945,8 @@
       const formData = new FormData();
       formData.append('image_a', state.a.file);
       formData.append('image_b', state.b.file);
+
+      const pollId = startLoadingPolling();
 
       try {
         const res = await fetch(getApiUrl('/compare'), { method: 'POST', body: formData });
@@ -629,6 +969,8 @@
       } catch (err) {
         setError('Comparison failed: ' + err.message);
       } finally {
+        clearInterval(pollId);
+        document.getElementById('loading-label').textContent = 'Processing…';
         showLoading(false);
       }
     }
