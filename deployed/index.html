@@ -865,14 +865,12 @@
       };
       if (MESSAGES[s]) label.textContent = MESSAGES[s];
 
-      // Render homography matrices
-      if (data.homography && (INITIAL_STATES.includes(s) || REFINED_STATES.includes(s))) {
-        if (INITIAL_STATES.includes(s)) {
-          renderMatrixGrid('matrix-grid-initial', 'matrix-placeholder-initial', data.homography);
-        }
-        if (REFINED_STATES.includes(s)) {
-          renderMatrixGrid('matrix-grid-refined', 'matrix-placeholder-refined', data.homography);
-        }
+      // Render homography matrices (independent of current state)
+      if (data.initial_homography) {
+        renderMatrixGrid('matrix-grid-initial', 'matrix-placeholder-initial', data.initial_homography);
+      }
+      if (data.refined_homography) {
+        renderMatrixGrid('matrix-grid-refined', 'matrix-placeholder-refined', data.refined_homography);
       }
 
       // Render warped images into step 4
@@ -928,26 +926,23 @@
       }
     }
 
-    // --- Streaming updates via SSE (localhost with threaded Flask) ---
-    let _eventSource = null;
-
-    function startUpdates() {
-      _eventSource = new EventSource(getApiUrl('/events'));
-      _eventSource.onmessage = function(event) {
-        updateTimeline(JSON.parse(event.data));
-      };
-    }
-
-    function stopUpdates() {
-      if (_eventSource) { _eventSource.close(); _eventSource = null; }
-    }
-
+    // --- Progress updates via polling (uWSGI-safe, no SSE) ---
     async function finalizeTimeline() {
-      // /compare joins cache threads, so one fetch gets all remaining data
-      try {
-        const res = await fetch(getApiUrl('/loading'));
-        if (res.ok) updateTimeline(await res.json());
-      } catch (_) {}
+      // Single-worker mode: populate entire timeline after /compare returns
+      const MAX = 15;
+      const DELAY = 500;
+      for (let i = 0; i < MAX; i++) {
+        try {
+          const res = await fetch(getApiUrl('/loading'));
+          if (res.ok) {
+            const data = await res.json();
+            updateTimeline(data);
+            if (data.image1 && data.image2 && data.initial_homography && data.refined_homography &&
+                data.warped1 && data.warped2 && data.hist1 && data.hist2) break;
+          }
+        } catch (_) {}
+        if (i < MAX - 1) await new Promise(r => setTimeout(r, DELAY));
+      }
 
       // Mark all steps complete
       for (let i = 1; i <= 5; i++) document.getElementById('loading-step-' + i).classList.add('active');
@@ -975,8 +970,6 @@
       formData.append('image_a', state.a.file);
       formData.append('image_b', state.b.file);
 
-      startUpdates();
-
       try {
         const res = await fetch(getApiUrl('/compare'), { method: 'POST', body: formData });
         const ct = res.headers.get('content-type') || '';
@@ -994,12 +987,10 @@
         } else {
           url = (await res.json()).result_url;
         }
-        stopUpdates();
         await finalizeTimeline();
         showResult(url);
       } catch (err) {
         setError('Comparison failed: ' + err.message);
-        stopUpdates();
       } finally {
         document.getElementById('loading-label').textContent = 'Processing…';
         showLoading(false);
