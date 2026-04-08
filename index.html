@@ -53,7 +53,7 @@
       color: #1A3A6B;
     }
 
-    .site-name span { color: #1a4fd6; }
+    .site-name span { color: #1A3A6B; }
 
     /* HERO */
     .hero {
@@ -67,8 +67,8 @@
     }
 
     .hero h1 {
-      font-size: 44px;
-      font-weight: 300;
+      font-size: 50px;
+      font-weight: 700;
       color: #1A3A6B;
       line-height: 1.1;
       margin-bottom: 16px;
@@ -77,7 +77,7 @@
 
     .hero h1 b {
       font-weight: 500;
-      color: #1a4fd6;
+      color: #1A3A6B;
     }
 
     .hero p {
@@ -107,7 +107,7 @@
 
     .hero-img-slot span {
       font-size: 13px;
-      color: #1a4fd6;
+      color: #1A3A6B;
       font-weight: 300;
     }
 
@@ -116,6 +116,7 @@
       flex: 1;
       padding: 40px 40px 60px;
       max-width: 1280px;
+      position: relative;
     }
 
     .section-label {
@@ -123,7 +124,7 @@
       font-weight: 600;
       letter-spacing: 0.05em;
       text-transform: none;
-      color: #1a4fd6;
+      color: #1A3A6B;
       margin-bottom: 30px;          /* more space below */
       padding-left: 0;
       border-left: none;
@@ -197,7 +198,7 @@
 
     .drop-text {
       font-size: 16px;
-      color: #1a4fd6;
+      color: #1A3A6B;
       text-align: center;
       line-height: 1.5;
       font-weight: 300;
@@ -262,7 +263,7 @@
 
     .run-status {
       font-size: 15px;
-      color: #1a4fd6;
+      color: #1A3A6B;
       font-weight: 300;
     }
 
@@ -390,10 +391,12 @@
       color: #CBD5E1;
       flex-shrink: 0;
       transition: color 0.4s;
+      fill: currentColor;
+      stroke: currentColor;
     }
 
     .step-arrow.active {
-      color: #1a4fd6;
+      color: #1A3A6B;
     }
 
     .step-placeholder {
@@ -423,7 +426,7 @@
     .matrix-title {
       font-size: 11px;
       font-weight: 500;
-      color: #1a4fd6;
+      color: #1A3A6B;
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
@@ -441,18 +444,12 @@
 
     .matrix-cell {
       background: #fff;
-      font-family: 'Courier New', monospace;
-      font-size: 9px;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 10px;
       color: #1A3A6B;
       text-align: right;
       padding: 4px 5px;
       white-space: nowrap;
-    }
-
-    .matrix-cell.highlight {
-      background: #EFF6FF;
-      color: #1a4fd6;
-      font-weight: 500;
     }
 
     .loading-dots {
@@ -480,13 +477,13 @@
 
     .loading-label {
       font-size: 14px;
-      color: #1a4fd6;
+      color: #1A3A6B;
       font-weight: 300;
     }
 
     .error-msg {
       font-size: 14px;
-      color: #1a4fd6;
+      color: #1A3A6B;
       background: #EFF6FF;
       border: 1px solid #BFDBFE;
       border-radius: 4px;
@@ -508,6 +505,67 @@
       .hero { grid-template-columns: 1fr; padding: 32px 20px; }
       .hero-img-slot { display: none; }
       .upload-grid { grid-template-columns: 1fr; }
+      #anim-panel { display: none; }
+    }
+
+    /* ── Animation panel ── */
+    #anim-panel {
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 110px;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      overflow: visible;
+      z-index: 10;
+    }
+
+    .cubesat-wrap {
+      margin-top: 8px;
+    }
+
+    .cubesat-img {
+      width: 90px;
+      height: auto;
+      display: block;
+      animation: cubesat-hover 7s ease-in-out infinite;
+      filter: drop-shadow(0 4px 12px rgba(26,79,214,0.18));
+      mix-blend-mode: screen;
+    }
+
+    @keyframes cubesat-hover {
+      0%   { transform: translate(0px, 0px) rotate(0deg); }
+      20%  { transform: translate(7px, -8px) rotate(1.5deg); }
+      40%  { transform: translate(-6px, -13px) rotate(-1deg); }
+      60%  { transform: translate(-9px, 5px) rotate(1deg); }
+      80%  { transform: translate(5px, 9px) rotate(-1.5deg); }
+      100% { transform: translate(0px, 0px) rotate(0deg); }
+    }
+
+    .moon-wrap {
+      width: 100px;
+      height: 50px;
+      overflow: hidden;
+      flex-shrink: 0;
+      margin-bottom: 0;
+    }
+
+    .moon-img {
+      width: 100px;
+      height: 100px;
+      display: block;
+      animation: moon-spin 28s linear infinite;
+      transform-origin: 50% 50%;
+      mix-blend-mode: screen;
+    }
+
+    @keyframes moon-spin {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
     }
   </style>
 </head>
@@ -531,6 +589,16 @@
   </section>
 
   <main>
+    <!-- Decorative animation panel: CubeSat (top) + Moon (bottom) -->
+    <div id="anim-panel">
+      <div class="cubesat-wrap">
+        <img class="cubesat-img" src="cubesat.png" alt="CubeSat"/>
+      </div>
+      <div class="moon-wrap">
+        <img class="moon-img" src="moon.png" alt="Moon"/>
+      </div>
+    </div>
+
     <hr/>
 
     <p class="section-label">Upload Images</p>
@@ -592,9 +660,9 @@
       </div>
 
       <!-- Arrow 1 -->
-      <svg class="step-arrow" id="step-arrow-1" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="5" y1="12" x2="19" y2="12"/>
-        <polyline points="12 5 19 12 12 19"/>
+      <svg class="step-arrow" id="step-arrow-1" width="32" height="28" viewBox="0 0 28 24">
+        <line x1="2" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="2.5"/>
+        <polygon points="16,5 25,12 16,19" fill="currentColor"/>
       </svg>
 
       <!-- Step 2: Initial Homography (RANSAC) -->
@@ -608,9 +676,9 @@
       </div>
 
       <!-- Arrow 2 -->
-      <svg class="step-arrow" id="step-arrow-2" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="5" y1="12" x2="19" y2="12"/>
-        <polyline points="12 5 19 12 12 19"/>
+      <svg class="step-arrow" id="step-arrow-2" width="32" height="28" viewBox="0 0 28 24">
+        <line x1="2" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="2.5"/>
+        <polygon points="16,5 25,12 16,19" fill="currentColor"/>
       </svg>
 
       <!-- Step 3: Refined Homography (ECC) -->
@@ -624,9 +692,9 @@
       </div>
 
       <!-- Arrow 3 -->
-      <svg class="step-arrow" id="step-arrow-3" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="5" y1="12" x2="19" y2="12"/>
-        <polyline points="12 5 19 12 12 19"/>
+      <svg class="step-arrow" id="step-arrow-3" width="32" height="28" viewBox="0 0 28 24">
+        <line x1="2" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="2.5"/>
+        <polygon points="16,5 25,12 16,19" fill="currentColor"/>
       </svg>
 
       <!-- Step 4: Warped image pair -->
@@ -639,9 +707,9 @@
       </div>
 
       <!-- Arrow 4 -->
-      <svg class="step-arrow" id="step-arrow-4" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="5" y1="12" x2="19" y2="12"/>
-        <polyline points="12 5 19 12 12 19"/>
+      <svg class="step-arrow" id="step-arrow-4" width="32" height="28" viewBox="0 0 28 24">
+        <line x1="2" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="2.5"/>
+        <polygon points="16,5 25,12 16,19" fill="currentColor"/>
       </svg>
 
       <!-- Step 5: Histogram-matched image pair -->
@@ -820,7 +888,6 @@
           cell.className = 'matrix-cell';
           const val = matrix[r][c];
           cell.textContent = val.toFixed(6);
-          if (r === c || c === 2) cell.classList.add('highlight');
           grid.appendChild(cell);
         }
       }
@@ -865,14 +932,12 @@
       };
       if (MESSAGES[s]) label.textContent = MESSAGES[s];
 
-      // Render homography matrices
-      if (data.homography && (INITIAL_STATES.includes(s) || REFINED_STATES.includes(s))) {
-        if (INITIAL_STATES.includes(s)) {
-          renderMatrixGrid('matrix-grid-initial', 'matrix-placeholder-initial', data.homography);
-        }
-        if (REFINED_STATES.includes(s)) {
-          renderMatrixGrid('matrix-grid-refined', 'matrix-placeholder-refined', data.homography);
-        }
+      // Render homography matrices (independent of current state)
+      if (data.initial_homography) {
+        renderMatrixGrid('matrix-grid-initial', 'matrix-placeholder-initial', data.initial_homography);
+      }
+      if (data.refined_homography) {
+        renderMatrixGrid('matrix-grid-refined', 'matrix-placeholder-refined', data.refined_homography);
       }
 
       // Render warped images into step 4

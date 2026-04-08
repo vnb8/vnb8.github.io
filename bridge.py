@@ -87,6 +87,8 @@ def compare():
             _loading_cache["hist1"] = None
             _loading_cache["hist2"] = None
         quarksat_module.set_state("initial")
+        quarksat_module.initial_homography = None
+        quarksat_module.refined_homography = None
         quarksat_module.sift_done_event.clear()
         quarksat_module.warp_done_event.clear()
         quarksat_module.histogram_done_event.clear()
@@ -183,19 +185,15 @@ def _cache_histogram_images():
 def _build_loading_data():
     """Build a snapshot of current state + all available cached data."""
     state = quarksat_module.state_machine
-    INITIAL_STATES = {'compute_homography_matrix', 'sift_done_start_homography', 'refining_alignment'}
-    REFINED_STATES = {'warping_image', 'matching_histograms', 'histogram_done', 'comparing_images'}
 
     data = {"state": state}
 
-    if state in INITIAL_STATES:
-        h = quarksat_module.initial_homography
-        if h is not None:
-            data["homography"] = h.tolist()
-    elif state in REFINED_STATES:
-        h = quarksat_module.refined_homography
-        if h is not None:
-            data["homography"] = h.tolist()
+    h_init = quarksat_module.initial_homography
+    if h_init is not None:
+        data["initial_homography"] = h_init.tolist()
+    h_ref = quarksat_module.refined_homography
+    if h_ref is not None:
+        data["refined_homography"] = h_ref.tolist()
 
     with _loading_lock:
         for key in ("image1", "image2", "warped1", "warped2", "hist1", "hist2"):
@@ -237,124 +235,38 @@ def events():
     )
 
 
+_STATE_MESSAGES = {
+    "initial": "Waiting to start…",
+    "loading_start": "Detecting features (SIFT)…",
+    "compute_homography_matrix": "Computing homography matrix (RANSAC)…",
+    "sift_done_start_homography": "Computing homography…",
+    "refining_alignment": "Refining alignment (ECC)…",
+    "warping_image": "Warping image…",
+    "matching_histograms": "Matching histograms (resolving brightness and color)…",
+    "histogram_done": "Histograms/Colors matched",
+    "comparing_images": "Comparing pixels…",
+}
+
+
 @app.get("/loading")
 def loading():
     state = quarksat_module.state_machine
+    resp = {"state": state, "message": _STATE_MESSAGES.get(state, f"Processing ({state})…")}
 
-    if state == "initial":
-        return jsonify({"state": state, "message": "Waiting to start…"})
-    elif state == "loading_start":
-        return jsonify({"state": state, "message": "Detecting features (SIFT)…"})
-    elif state == "compute_homography_matrix":
-        resp = {"state": state, "message": "Computing homography matrix (RANSAC)…"}
-        h_mat = quarksat_module.initial_homography
-        if h_mat is not None:
-            resp["homography"] = h_mat.tolist()
-        return jsonify(resp)
-    elif state == "sift_done_start_homography":
-        with _loading_lock:
-            img1 = _loading_cache.get("image1")
-            img2 = _loading_cache.get("image2")
-        resp = {"state": state, "message": "Computing homography…"}
-        if img1:
-            resp["image1"] = img1
-        if img2:
-            resp["image2"] = img2
-        h_mat = quarksat_module.initial_homography
-        if h_mat is not None:
-            resp["homography"] = h_mat.tolist()
-        return jsonify(resp)
-    elif state == "refining_alignment":
-        with _loading_lock:
-            img1 = _loading_cache.get("image1")
-            img2 = _loading_cache.get("image2")
-        resp = {"state": state, "message": "Refining alignment (ECC)…"}
-        if img1:
-            resp["image1"] = img1
-        if img2:
-            resp["image2"] = img2
-        h_mat = quarksat_module.initial_homography
-        if h_mat is not None:
-            resp["homography"] = h_mat.tolist()
-        return jsonify(resp)
-    elif state == "matching_histograms":
-        resp = {"state": state, "message": "Matching histograms (resolving brightness and color)…"}
-        h_mat = quarksat_module.refined_homography
-        if h_mat is not None:
-            resp["homography"] = h_mat.tolist()
-        with _loading_lock:
-            w1 = _loading_cache.get("warped1")
-            w2 = _loading_cache.get("warped2")
-        if w1:
-            resp["warped1"] = w1
-        if w2:
-            resp["warped2"] = w2
-        return jsonify(resp)
-    elif state == "warping_image":
-        resp = {"state": state, "message": "Warping image…"}
-        h_mat = quarksat_module.refined_homography
-        if h_mat is not None:
-            resp["homography"] = h_mat.tolist()
-        with _loading_lock:
-            w1 = _loading_cache.get("warped1")
-            w2 = _loading_cache.get("warped2")
-        if w1:
-            resp["warped1"] = w1
-        if w2:
-            resp["warped2"] = w2
-        return jsonify(resp)
-    elif state == "histogram_done":
-        resp = {"state": state, "message": "Histograms/Colors matched"}
-        h_mat = quarksat_module.refined_homography
-        if h_mat is not None:
-            resp["homography"] = h_mat.tolist()
-        with _loading_lock:
-            img1 = _loading_cache.get("image1")
-            img2 = _loading_cache.get("image2")
-            w1 = _loading_cache.get("warped1")
-            w2 = _loading_cache.get("warped2")
-            hi1 = _loading_cache.get("hist1")
-            hi2 = _loading_cache.get("hist2")
-        if img1:
-            resp["image1"] = img1
-        if img2:
-            resp["image2"] = img2
-        if w1:
-            resp["warped1"] = w1
-        if w2:
-            resp["warped2"] = w2
-        if hi1:
-            resp["hist1"] = hi1
-        if hi2:
-            resp["hist2"] = hi2
-        return jsonify(resp)
-    elif state == "comparing_images":
-        resp = {"state": state, "message": "Comparing pixels…"}
-        h_mat = quarksat_module.refined_homography
-        if h_mat is not None:
-            resp["homography"] = h_mat.tolist()
-        with _loading_lock:
-            img1 = _loading_cache.get("image1")
-            img2 = _loading_cache.get("image2")
-            w1 = _loading_cache.get("warped1")
-            w2 = _loading_cache.get("warped2")
-            hi1 = _loading_cache.get("hist1")
-            hi2 = _loading_cache.get("hist2")
-        if img1:
-            resp["image1"] = img1
-        if img2:
-            resp["image2"] = img2
-        if w1:
-            resp["warped1"] = w1
-        if w2:
-            resp["warped2"] = w2
-        if hi1:
-            resp["hist1"] = hi1
-        if hi2:
-            resp["hist2"] = hi2
-        return jsonify(resp)
-    else:
-        return jsonify({"state": state, "message": f"Processing ({state})…"})
+    h_init = quarksat_module.initial_homography
+    if h_init is not None:
+        resp["initial_homography"] = h_init.tolist()
+    h_ref = quarksat_module.refined_homography
+    if h_ref is not None:
+        resp["refined_homography"] = h_ref.tolist()
+
+    with _loading_lock:
+        for key in ("image1", "image2", "warped1", "warped2", "hist1", "hist2"):
+            val = _loading_cache.get(key)
+            if val:
+                resp[key] = val
+
+    return jsonify(resp)
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=8000, debug=True, threaded=True)

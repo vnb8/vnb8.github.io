@@ -85,6 +85,8 @@ def compare():
             _loading_cache["hist1"] = None
             _loading_cache["hist2"] = None
         quarksat_module.set_state("initial")
+        quarksat_module.initial_homography = None
+        quarksat_module.refined_homography = None
         quarksat_module.sift_done_event.clear()
         quarksat_module.warp_done_event.clear()
         quarksat_module.histogram_done_event.clear()
